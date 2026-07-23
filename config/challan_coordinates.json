@@ -1,0 +1,285 @@
+{
+    "template_name": "NextUp Robotics Delivery Challan",
+    "template_id": "delivery_challan",
+    "page_size": "A4",
+    "width_pt": 595.27,
+    "height_pt": 841.89,
+    "use_background_pdf": true,
+    "background_pdf": "templates/challan copy.pdf",
+    "elements": [
+        {
+            "id": "supplier_state",
+            "type": "text",
+            "name": "Supplier State",
+            "x": 50,
+            "y": 160,
+            "width": 65,
+            "height": 12,
+            "text": "{{supplier_state|UTTAR PRADESH}}",
+            "font": "Helvetica",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "left",
+            "erase_bg": false
+        },
+        {
+            "id": "vehicle_no",
+            "type": "text",
+            "name": "Vehicle No",
+            "x": 390,
+            "y": 140,
+            "width": 75,
+            "height": 12,
+            "text": "{{vehicle_no|UP-14-BT-9999}}",
+            "font": "Helvetica",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "left",
+            "erase_bg": false
+        },
+        {
+            "id": "items_table",
+            "type": "table",
+            "name": "Items Table",
+            "x": 10,
+            "y": 160,
+            "width": 575,
+            "height": 150,
+            "row_height": 16,
+            "data_key": "items",
+            "erase_bg": false,
+            "columns": [
+                {
+                    "title": "S.NO.",
+                    "key": "sno",
+                    "width": 30,
+                    "align": "center"
+                },
+                {
+                    "title": "Description/Service",
+                    "key": "description",
+                    "width": 120,
+                    "align": "left"
+                },
+                {
+                    "title": "HSN Code",
+                    "key": "hsn",
+                    "width": 55,
+                    "align": "center"
+                },
+                {
+                    "title": "Qty",
+                    "key": "qty",
+                    "width": 35,
+                    "align": "right"
+                },
+                {
+                    "title": "Rate",
+                    "key": "rate",
+                    "width": 45,
+                    "align": "right"
+                },
+                {
+                    "title": "Taxable Amt",
+                    "key": "taxable",
+                    "width": 50,
+                    "align": "right"
+                },
+                {
+                    "title": "CGST %",
+                    "key": "cgst_rate",
+                    "width": 40,
+                    "align": "right"
+                },
+                {
+                    "title": "CGST Amt",
+                    "key": "cgst_amt",
+                    "width": 50,
+                    "align": "right"
+                },
+                {
+                    "title": "SGST %",
+                    "key": "sgst_rate",
+                    "width": 40,
+                    "align": "right"
+                },
+                {
+                    "title": "SGST Amt",
+                    "key": "sgst_amt",
+                    "width": 50,
+                    "align": "right"
+                },
+                {
+                    "title": "Total",
+                    "key": "total",
+                    "width": 55,
+                    "align": "right"
+                }
+            ],
+            "text": "",
+            "font_size": 6
+        },
+        {
+            "id": "lbl_amount_words",
+            "type": "text",
+            "name": "Amount in Words",
+            "x": 110,
+            "y": 356,
+            "width": 200,
+            "height": 28,
+            "text": "{{amount_words}}",
+            "font": "Helvetica-Bold",
+            "font_size": 7.5,
+            "color": "#000000",
+            "alignment": "left",
+            "erase_bg": false
+        },
+        {
+            "id": "val_before_tax",
+            "type": "text",
+            "name": "Amount Before Tax",
+            "x": 500,
+            "y": 350,
+            "width": 80,
+            "height": 10,
+            "text": "{{subtotal|0.00}}",
+            "font": "Helvetica-Bold",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "right",
+            "erase_bg": false
+        },
+        {
+            "id": "val_cgst",
+            "type": "text",
+            "name": "CGST Total",
+            "x": 500,
+            "y": 360,
+            "width": 80,
+            "height": 10,
+            "text": "{{cgst_total|0.00}}",
+            "font": "Helvetica",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "right",
+            "erase_bg": false
+        },
+        {
+            "id": "val_sgst",
+            "type": "text",
+            "name": "SGST Total",
+            "x": 500,
+            "y": 370,
+            "width": 80,
+            "height": 10,
+            "text": "{{sgst_total|0.00}}",
+            "font": "Helvetica",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "right",
+            "erase_bg": false
+        },
+        {
+            "id": "val_igst",
+            "type": "text",
+            "name": "IGST Total",
+            "x": 500,
+            "y": 380,
+            "width": 80,
+            "height": 10,
+            "text": "{{igst_total|0.00}}",
+            "font": "Helvetica",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "right",
+            "erase_bg": false
+        },
+        {
+            "id": "val_tax_total",
+            "type": "text",
+            "name": "Total GST",
+            "x": 500,
+            "y": 390,
+            "width": 80,
+            "height": 10,
+            "text": "{{tax_total|0.00}}",
+            "font": "Helvetica-Bold",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "right",
+            "erase_bg": false
+        },
+        {
+            "id": "val_round_off",
+            "type": "text",
+            "name": "Round Off",
+            "x": 500,
+            "y": 400,
+            "width": 80,
+            "height": 10,
+            "text": "{{round_off|0.00}}",
+            "font": "Helvetica",
+            "font_size": 8,
+            "color": "#000000",
+            "alignment": "right",
+            "erase_bg": false
+        },
+        {
+            "id": "val_total_after_tax",
+            "type": "text",
+            "name": "Total After Tax",
+            "x": 500,
+            "y": 410,
+            "width": 80,
+            "height": 10,
+            "text": "{{amount|0.00}}",
+            "font": "Helvetica-Bold",
+            "font_size": 9,
+            "color": "#1e3a5f",
+            "alignment": "right",
+            "erase_bg": false
+        },
+        {
+            "id": "elem_15",
+            "type": "text",
+            "name": "New Text",
+            "x": 280,
+            "y": 110,
+            "width": 108.7,
+            "height": 12.8,
+            "text": " {{studentName}}",
+            "font": "Helvetica",
+            "font_size": 6,
+            "color": "#000000",
+            "alignment": "left"
+        },
+        {
+            "id": "elem_16",
+            "type": "text",
+            "name": "New Text",
+            "x": 280,
+            "y": 120,
+            "width": 101.3,
+            "height": 12.1,
+            "text": " {{customer_address}}",
+            "font": "Helvetica",
+            "font_size": 10,
+            "color": "#000000",
+            "alignment": "left"
+        },
+        {
+            "id": "elem_14",
+            "type": "text",
+            "name": "New Text",
+            "x": 70.0,
+            "y": 120.0,
+            "width": 79.7,
+            "height": 10,
+            "text": " {{challanNumber}}",
+            "font": "Helvetica",
+            "font_size": 6,
+            "color": "#000000",
+            "alignment": "left"
+        }
+    ]
+}

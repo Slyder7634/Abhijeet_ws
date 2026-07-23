@@ -1,0 +1,125 @@
+{
+    "description": "Coordinates for all form fields on the challan template",
+    "fields": {
+        "amount": {
+            "alignment": "left",
+            "color": "#f8e45c",
+            "font": "Helvetica-Bold",
+            "font_size": 16,
+            "x": 146,
+            "y": 380
+        },
+        "challanNumber": {
+            "alignment": "right",
+            "color": "#666666",
+            "font": "Helvetica",
+            "font_size": 10,
+            "x": 450,
+            "y": 100
+        },
+        "date": {
+            "alignment": "left",
+            "color": "#000000",
+            "font": "Helvetica",
+            "font_size": 12,
+            "x": 150,
+            "y": 440
+        },
+        "description": {
+            "alignment": "left",
+            "color": "#000000",
+            "font": "Helvetica",
+            "font_size": 12,
+            "x": 150,
+            "y": 410
+        },
+        "footer": {
+            "alignment": "center",
+            "color": "#666666",
+            "font": "Helvetica-Oblique",
+            "font_size": 9,
+            "x": 300,
+            "y": 750
+        },
+        "generatedDate": {
+            "alignment": "right",
+            "color": "#666666",
+            "font": "Helvetica",
+            "font_size": 10,
+            "x": 450,
+            "y": 115
+        },
+        "rollNo": {
+            "alignment": "left",
+            "color": "#000000",
+            "font": "Helvetica",
+            "font_size": 12,
+            "x": 150,
+            "y": 350
+        },
+        "status": {
+            "alignment": "center",
+            "color": "#10b981",
+            "font": "Helvetica-Bold",
+            "font_size": 12,
+            "x": 350,
+            "y": 500
+        },
+        "studentName": {
+            "alignment": "left",
+            "color": "#000000",
+            "font": "Helvetica",
+            "font_size": 12,
+            "x": 150,
+            "y": 320
+        }
+    },
+    "labels": {
+        "amount": {
+            "font": "Helvetica-Bold",
+            "font_size": 12,
+            "text": "Amount:",
+            "x": 60,
+            "y": 380
+        },
+        "date": {
+            "font": "Helvetica-Bold",
+            "font_size": 12,
+            "text": "Date:",
+            "x": 60,
+            "y": 440
+        },
+        "description": {
+            "font": "Helvetica-Bold",
+            "font_size": 12,
+            "text": "Description:",
+            "x": 60,
+            "y": 410
+        },
+        "rollNo": {
+            "font": "Helvetica-Bold",
+            "font_size": 12,
+            "text": "Roll Number:",
+            "x": 60,
+            "y": 350
+        },
+        "studentName": {
+            "font": "Helvetica-Bold",
+            "font_size": 12,
+            "text": "Student Name:",
+            "x": 60,
+            "y": 320
+        }
+    },
+    "layout": {
+        "box_height": 200,
+        "box_width": 520,
+        "box_x": 40,
+        "box_y": 280,
+        "label_width": 100,
+        "line_color": "#1e3a5f",
+        "line_width": 1,
+        "row_height": 35
+    },
+    "template_name": "Challan Template v1.0"
+}
