@@ -313,9 +313,9 @@ class ChallanGenerator:
             rl_y = page_height - y - h
             
             # White-out Masking to erase underlying sample template text if background is active
-            if is_bg_active and elem.get('erase_bg', True):
-                c.setFillColor(colors.white)
-                c.rect(rl_x - 1, rl_y - 1, w + 2, h + 2, fill=True, stroke=False)
+            # if is_bg_active and elem.get('erase_bg', True):
+            #     c.setFillColor(colors.white)
+            #     c.rect(rl_x - 1, rl_y - 1, w + 2, h + 2, fill=True, stroke=False)
             
             if elem_type == 'text':
                 raw_text = elem.get('text', '')
