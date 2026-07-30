@@ -709,6 +709,7 @@ class HomeTab(QWidget):
         
         # Company info display
         self.company_info = QLabel("No company selected")
+        self.company_info.setWordWrap(True)
         self.company_info.setStyleSheet("color: #64748b; font-size: 11px; padding: 2px 0;")
         company_layout.addWidget(self.company_info)
         
@@ -963,9 +964,10 @@ class HomeTab(QWidget):
         }
         
         generator = get_generator()
-        save_path = generator.save_pdf(payload)
-        self.main_window.toast.show_message("Challan generated successfully!", "success")
-        QDesktopServices.openUrl(QUrl.fromLocalFile(save_path))
+        saved_paths = generator.save_dual_pdfs(payload)
+        self.main_window.toast.show_message("Bill and Challan generated successfully!", "success")
+        QDesktopServices.openUrl(QUrl.fromLocalFile(saved_paths['bill']))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(saved_paths['challan']))
 
 
 # ======================== SEARCH CHALLAN TAB ========================

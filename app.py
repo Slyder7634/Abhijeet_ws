@@ -52,19 +52,23 @@ class ChallanGenerator:
         self._ensure_template_exists()
         
     def _load_config(self) -> Dict:
-        """Load configuration from JSON file"""
+        """Load challan configuration from JSON file"""
+        return self._load_or_create_config(self.config_path, self.get_default_delivery_challan_config)
+
+    def _load_or_create_config(self, path: str, default_factory) -> Dict:
+        """Load a JSON config from disk, creating it from default_factory() if missing/invalid"""
         try:
-            with open(self.config_path, 'r') as f:
+            with open(path, 'r') as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            default_config = self.get_default_delivery_challan_config()
-            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
-            with open(self.config_path, 'w') as f:
+            default_config = default_factory()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w') as f:
                 json.dump(default_config, f, indent=4)
             return default_config
             
     def save_config(self, config: Dict):
-        """Save configuration to JSON file"""
+        """Save challan configuration to JSON file"""
         self.config = config
         os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
         with open(self.config_path, 'w') as f:
@@ -125,8 +129,8 @@ class ChallanGenerator:
                 {"id": "customer_address", "type": "text", "name": "Customer Address", "x": 288, "y": 127, "width": 290, "height": 12, "text": "{{customer_address|5 & 7, UDYOG VIHAR INDUSTRIAL AREA, GREATER NOIDA, Gautambuddha Nagar, U.P-201306}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "customer_gstin", "type": "text", "name": "Customer GSTIN", "x": 288, "y": 137, "width": 160, "height": 12, "text": "{{customer_gstin|09AAACG0050D1ZA}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "vehicle_no", "type": "text", "name": "Vehicle No", "x": 415, "y": 148, "width": 75, "height": 12, "text": "{{vehicle_no|UP-14-BT-9999}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
-                {"id": "customer_state", "type": "text", "name": "Customer State", "x": 288, "y": 148, "width": 60, "height": 12, "text": "{{customer_state|U.P}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
-                {"id": "customer_code", "type": "text", "name": "Customer State Code", "x": 550, "y": 148, "width": 30, "height": 12, "text": "{{customer_state_code|09}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
+                {"id": "customer_state", "type": "text", "name": "Customer State", "x": 318, "y": 148, "width": 60, "height": 12, "text": "{{customer_state|U.P}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
+                {"id": "customer_code", "type": "text", "name": "Customer State Code", "x": 570, "y": 148, "width": 30, "height": 12, "text": "{{customer_state_code|09}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 
                 # Dynamic Items Table Component
                 {
@@ -174,6 +178,53 @@ class ChallanGenerator:
                 {"id": "auth_sign", "type": "text", "name": "Authorised Signatory", "x": 380, "y": 482, "width": 200, "height": 12, "text": "Authorised Signatory", "font": "Helvetica-Bold", "font_size": 9, "color": "#000000", "alignment": "center", "erase_bg": True}
             ]
         }
+
+    # TaxInvoice.pdf's printed header spacing differs slightly from the challan artwork
+    # (they're two different pre-printed backgrounds), so a couple of fields can need a
+    # small nudge on the Bill only. Everything else is still cloned 1:1 from the challan
+    # config. Adjust the x/y offsets below (in points) if a field still isn't quite right
+    # after adding TaxInvoice.pdf — positive y moves DOWN the page, positive x moves RIGHT.
+    BILL_POSITION_OVERRIDES: Dict[str, Dict[str, float]] = {
+        "challan_date": {"y": 149},  # was colliding with "challan_no" above it; nudged down
+    }
+
+    def build_invoice_config(
+        self,
+        challan_config: Optional[Dict] = None,
+        background_pdf: str = "TaxInvoice.pdf",
+        doc_title: str = "Tax Invoice",
+        position_overrides: Optional[Dict[str, Dict[str, float]]] = None
+    ) -> Dict:
+        """
+        Build the Bill / Tax Invoice layout by cloning the CURRENT, already-tuned challan
+        config (self.config) verbatim — same coordinates, fonts, table columns, everything —
+        and only swapping the background PDF (and the "Challan" title text, if present) so
+        the Bill uses TaxInvoice.pdf instead of the challan artwork. This is computed fresh
+        on every call, so any future tuning you do to the challan layout is automatically
+        picked up by the bill too — nothing to keep in sync by hand.
+
+        position_overrides lets a handful of fields be nudged for the Bill ONLY (e.g. because
+        TaxInvoice.pdf's printed header spacing differs from the challan artwork), without
+        touching the Challan's positions at all. Defaults to BILL_POSITION_OVERRIDES.
+        """
+        base = challan_config if challan_config is not None else self.config
+        invoice_config = copy.deepcopy(base)
+        invoice_config['template_name'] = "NextUp Robotics Tax Invoice"
+        invoice_config['template_id'] = "tax_invoice"
+        invoice_config['background_pdf'] = background_pdf
+
+        if doc_title:
+            for elem in invoice_config.get('elements', []):
+                if elem.get('id') == 'doc_title':
+                    elem['text'] = doc_title
+
+        overrides = self.BILL_POSITION_OVERRIDES if position_overrides is None else position_overrides
+        if overrides:
+            for elem in invoice_config.get('elements', []):
+                if elem.get('id') in overrides:
+                    elem.update(overrides[elem['id']])
+
+        return invoice_config
 
     def process_data_and_totals(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Enrich submission data with auto-calculated subtotals, taxes, and currency words"""
@@ -446,6 +497,91 @@ class ChallanGenerator:
             f.write(pdf_bytes)
             
         return save_path
+
+    def zero_out_amounts(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Return a NEW dict (deep copy) with every monetary value set to 0, for the Challan copy.
+        The original `data` passed in is never touched.
+        """
+        zeroed = copy.deepcopy(data)
+
+        money_item_keys = ('rate', 'taxable', 'cgst_amt', 'sgst_amt', 'igst_amt', 'total')
+        zeroed_items = []
+        for item in zeroed.get('items', []):
+            zeroed_item = copy.deepcopy(item)
+            for key in money_item_keys:
+                if key in zeroed_item:
+                    zeroed_item[key] = 0
+            zeroed_items.append(zeroed_item)
+        if zeroed_items:
+            zeroed['items'] = zeroed_items
+
+        money_totals_keys = ('amount', 'subtotal', 'cgst_total', 'sgst_total', 'igst_total', 'tax_total', 'round_off')
+        for key in money_totals_keys:
+            zeroed[key] = "0.00"
+
+        zeroed['amount_words'] = number_to_words_indian(0)
+
+        return zeroed
+
+    def generate_dual_documents(
+        self,
+        form_data: Dict[str, Any],
+        bill_config: Optional[Dict] = None,
+        challan_config: Optional[Dict] = None
+    ) -> Dict[str, bytes]:
+        """
+        From a single submission, generate two independent PDFs:
+          - "bill": the Tax Invoice with the real amounts (uses TaxInvoice.pdf, cloned live from self.config)
+          - "challan": the Delivery Challan with all prices zeroed out (uses self.config / challan copy.pdf)
+
+        form_data is deep-copied into bill_data and challan_data up front so modifying one
+        (zeroing out challan_data's amounts) can never affect the other or the caller's original dict.
+        """
+        bill_data = copy.deepcopy(form_data)
+        challan_data = self.zero_out_amounts(form_data)
+
+        if bill_config is None:
+            bill_config = self.build_invoice_config(challan_config if challan_config is not None else self.config)
+        if challan_config is None:
+            challan_config = self.config
+
+        bill_pdf_bytes = self.generate_challan(bill_data, bill_config)
+        challan_pdf_bytes = self.generate_challan(challan_data, challan_config)
+
+        return {"bill": bill_pdf_bytes, "challan": challan_pdf_bytes}
+
+    def save_dual_pdfs(
+        self,
+        form_data: Dict[str, Any],
+        bill_filename: str = None,
+        challan_filename: str = None
+    ) -> Dict[str, str]:
+        """Generate both the Bill and the Challan PDFs and save them to the generated directory."""
+        pdfs = self.generate_dual_documents(form_data)
+
+        roll_no = form_data.get('rollNo', form_data.get('challanNumber', 'challan'))
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        if bill_filename is None:
+            bill_filename = f"Bill_{roll_no}_{timestamp}.pdf"
+        if challan_filename is None:
+            challan_filename = f"Challan_{roll_no}_{timestamp}.pdf"
+
+        generated_dir = os.path.join(self.base_dir, 'generated')
+        os.makedirs(generated_dir, exist_ok=True)
+
+        bill_path = os.path.join(generated_dir, bill_filename)
+        challan_path = os.path.join(generated_dir, challan_filename)
+        os.makedirs(os.path.dirname(bill_path), exist_ok=True)
+        os.makedirs(os.path.dirname(challan_path), exist_ok=True)
+
+        with open(bill_path, 'wb') as f:
+            f.write(pdfs['bill'])
+        with open(challan_path, 'wb') as f:
+            f.write(pdfs['challan'])
+
+        return {"bill": bill_path, "challan": challan_path}
 
 
 _challan_generator = None

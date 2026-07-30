@@ -5,6 +5,7 @@ Handles MongoDB storage (with JSON fallback), PDF generation, live previews, and
 
 import os
 import json
+import copy
 import shutil
 from datetime import datetime
 from flask import Flask, request, jsonify, send_file, Response
@@ -81,18 +82,27 @@ def submit():
         if not name and not roll:
             return jsonify({"error": "Student / Customer Name or Roll / Challan Number is required"}), 400
 
-        # Generate enriched data & PDF
+        # Generate enriched data, then produce two independent PDFs:
+        #   - bill: Tax Invoice with the real amounts
+        #   - challan: Delivery Challan with all prices zeroed out
+        # generate_dual_documents deep-copies the enriched data internally, so zeroing out
+        # the challan copy never touches the bill copy's amounts.
         enriched_data = generator.process_data_and_totals(data)
-        pdf_bytes = generator.generate_challan(enriched_data)
-        
+        pdfs = generator.generate_dual_documents(enriched_data)
+
         roll_id = enriched_data.get('rollNo', 'challan')
-        filename = f"Challan_{roll_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        save_path = os.path.join(generator.base_dir, 'generated', filename)
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        
-        with open(save_path, 'wb') as f:
-            f.write(pdf_bytes)
-            
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        bill_filename = f"Bill_{roll_id}_{timestamp}.pdf"
+        challan_filename = f"Challan_{roll_id}_{timestamp}.pdf"
+
+        generated_dir = os.path.join(generator.base_dir, 'generated')
+        os.makedirs(generated_dir, exist_ok=True)
+
+        with open(os.path.join(generated_dir, bill_filename), 'wb') as f:
+            f.write(pdfs['bill'])
+        with open(os.path.join(generated_dir, challan_filename), 'wb') as f:
+            f.write(pdfs['challan'])
+
         sub_id = f"sub_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
         
         submission = {
@@ -102,7 +112,9 @@ def submit():
             "amount": enriched_data.get('amount', '0.00'),
             "description": enriched_data.get('description', 'Services'),
             "date": enriched_data.get('date', datetime.now().strftime('%Y-%m-%d')),
-            "pdfFilename": filename,
+            "pdfFilename": bill_filename,
+            "billFilename": bill_filename,
+            "challanFilename": challan_filename,
             "createdAt": datetime.now().isoformat(),
             "status": "completed",
             "fullData": enriched_data
@@ -118,11 +130,13 @@ def submit():
             subs.insert(0, submission)
             save_local_submissions(subs)
             
-        submission['pdfUrl'] = f"/api/pdf/{filename}"
+        submission['pdfUrl'] = f"/api/pdf/{bill_filename}"
+        submission['billUrl'] = f"/api/pdf/{bill_filename}"
+        submission['challanUrl'] = f"/api/pdf/{challan_filename}"
         
         return jsonify({
             "success": True,
-            "message": "Challan generated successfully",
+            "message": "Bill and Challan generated successfully",
             "submission": submission
         })
         
