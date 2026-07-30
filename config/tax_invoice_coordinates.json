@@ -251,7 +251,7 @@
             "id": "customer_code",
             "type": "text",
             "name": "Customer State Code",
-            "x": 570,
+            "x": 550,
             "y": 148,
             "width": 30,
             "height": 12,

@@ -15,9 +15,11 @@ from reportlab.lib import colors
 
 try:
     from PyPDF2 import PdfReader, PdfWriter
+    from PyPDF2 import Transformation
 except ImportError:
     try:
         from pypdf import PdfReader, PdfWriter
+        from pypdf import Transformation
     except ImportError:
         print("❌ PyPDF2 or pypdf is required")
         raise
@@ -128,8 +130,8 @@ class ChallanGenerator:
                 {"id": "customer_name", "type": "text", "name": "Customer Name", "x": 288, "y": 115, "width": 290, "height": 12, "text": "{{studentName|GSC GLASS PRIVATE LIMITED}}", "font": "Helvetica-Bold", "font_size": 9, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "customer_address", "type": "text", "name": "Customer Address", "x": 288, "y": 127, "width": 290, "height": 12, "text": "{{customer_address|5 & 7, UDYOG VIHAR INDUSTRIAL AREA, GREATER NOIDA, Gautambuddha Nagar, U.P-201306}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "customer_gstin", "type": "text", "name": "Customer GSTIN", "x": 288, "y": 137, "width": 160, "height": 12, "text": "{{customer_gstin|09AAACG0050D1ZA}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
-                {"id": "vehicle_no", "type": "text", "name": "Vehicle No", "x": 415, "y": 148, "width": 75, "height": 12, "text": "{{vehicle_no|UP-14-BT-9999}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
-                {"id": "customer_state", "type": "text", "name": "Customer State", "x": 318, "y": 148, "width": 60, "height": 12, "text": "{{customer_state|U.P}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
+                {"id": "vehicle_no", "type": "text", "name": "Vehicle No", "x": 415, "y": 148, "width": 75, "height": 12, "text": "{{challan_vehicle_no|UP-14-BT-9999}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
+                {"id": "customer_state", "type": "text", "name": "Customer State", "x": 288, "y": 148, "width": 60, "height": 12, "text": "{{customer_state|U.P}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "customer_code", "type": "text", "name": "Customer State Code", "x": 570, "y": 148, "width": 30, "height": 12, "text": "{{customer_state_code|09}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 
                 # Dynamic Items Table Component
@@ -188,12 +190,22 @@ class ChallanGenerator:
         "challan_date": {"y": 149},  # was colliding with "challan_no" above it; nudged down
     }
 
+    # The Challan and the Bill are two independent documents and can carry two different
+    # vehicle numbers (e.g. the vehicle actually used to physically move the goods may
+    # differ from what ends up on the tax invoice, or one may simply be corrected later
+    # without touching the other). The challan config's "vehicle_no" element reads
+    # {{challan_vehicle_no}}; this override swaps it to {{bill_vehicle_no}} for the Bill only.
+    BILL_TEXT_OVERRIDES: Dict[str, str] = {
+        "vehicle_no": "{{bill_vehicle_no|UP-14-BT-9999}}",
+    }
+
     def build_invoice_config(
         self,
         challan_config: Optional[Dict] = None,
         background_pdf: str = "TaxInvoice.pdf",
         doc_title: str = "Tax Invoice",
-        position_overrides: Optional[Dict[str, Dict[str, float]]] = None
+        position_overrides: Optional[Dict[str, Dict[str, float]]] = None,
+        text_overrides: Optional[Dict[str, str]] = None
     ) -> Dict:
         """
         Build the Bill / Tax Invoice layout by cloning the CURRENT, already-tuned challan
@@ -224,12 +236,34 @@ class ChallanGenerator:
                 if elem.get('id') in overrides:
                     elem.update(overrides[elem['id']])
 
+        txt_overrides = self.BILL_TEXT_OVERRIDES if text_overrides is None else text_overrides
+        if txt_overrides:
+            for elem in invoice_config.get('elements', []):
+                if elem.get('id') in txt_overrides:
+                    elem['text'] = txt_overrides[elem['id']]
+
         return invoice_config
 
     def process_data_and_totals(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Enrich submission data with auto-calculated subtotals, taxes, and currency words"""
         data = copy.deepcopy(data)
-        
+
+        # --- Vehicle number normalization ---
+        # The Challan and the Bill each have their own vehicle number field
+        # (challan_vehicle_no / bill_vehicle_no) so one can be corrected without
+        # touching the other. Older callers may still send a single "vehicle_no" -
+        # in that case use it for whichever of the two is missing. If only one of
+        # the two new fields was supplied, mirror it into the other so a freshly
+        # created record always has both filled in with something sensible.
+        legacy_vehicle_no = data.get('vehicle_no', '')
+        challan_vehicle_no = data.get('challan_vehicle_no') or legacy_vehicle_no
+        bill_vehicle_no = data.get('bill_vehicle_no') or challan_vehicle_no or legacy_vehicle_no
+        if not challan_vehicle_no:
+            challan_vehicle_no = bill_vehicle_no
+        data['challan_vehicle_no'] = challan_vehicle_no
+        data['bill_vehicle_no'] = bill_vehicle_no
+        data['vehicle_no'] = challan_vehicle_no  # kept for backward compatibility
+
         items = data.get('items', [])
         if not items and data.get('description'):
             try:
@@ -332,6 +366,7 @@ class ChallanGenerator:
                 
                 for page_num in range(len(template_pdf.pages)):
                     template_page = template_pdf.pages[page_num]
+                    self._normalize_mediabox(template_page)
                     if page_num < len(overlay_pdf.pages):
                         template_page.merge_page(overlay_pdf.pages[page_num])
                     writer.add_page(template_page)
@@ -343,6 +378,34 @@ class ChallanGenerator:
                 print(f"⚠️ Template overlay merge failed: {e}. Falling back to direct PDF render.")
                 
         return overlay_bytes
+
+    @staticmethod
+    def _normalize_mediabox(page) -> None:
+        """
+        Some background PDFs (e.g. TaxInvoice.pdf) have a MediaBox whose lower-left
+        corner isn't at (0, 0) — likely a leftover from how the file was scanned or
+        exported. The ReportLab overlay is always drawn assuming a page that starts
+        at (0, 0), so merging it straight onto a page with a non-zero origin silently
+        shifts every field by the offset (e.g. ~8pt downward for TaxInvoice.pdf).
+
+        This translates the background page's content so its MediaBox starts at
+        (0, 0), without changing how anything printed on it looks, so the overlay's
+        coordinates line up with it correctly.
+        """
+        mb = page.mediabox
+        dx, dy = -float(mb.left), -float(mb.bottom)
+        if dx == 0 and dy == 0:
+            return
+        page.add_transformation(Transformation().translate(tx=dx, ty=dy))
+        page.mediabox.upper_right = (float(mb.right) + dx, float(mb.top) + dy)
+        page.mediabox.lower_left = (0, 0)
+        # Keep the crop box (if present) in sync so viewers don't clip content
+        try:
+            cb = page.cropbox
+            cb.upper_right = (float(cb.right) + dx, float(cb.top) + dy)
+            cb.lower_left = (float(cb.left) + dx, float(cb.bottom) + dy)
+        except Exception:
+            pass
 
     def _render_overlay(self, data: Dict[str, Any], template_config: Dict, is_bg_active: bool = True) -> bytes:
         """Render vector shapes, text, tables, and images on ReportLab canvas using Top-Left coordinates"""
@@ -419,6 +482,11 @@ class ChallanGenerator:
         c.save()
         return buffer.getvalue()
 
+    # Item-level keys that represent money amounts; these get summed into the
+    # "Total" row drawn under the items table (kept in sync with zero_out_amounts,
+    # which zeroes the same set of keys for the Challan copy).
+    MONEY_COLUMN_KEYS = ('rate', 'taxable', 'cgst_amt', 'sgst_amt', 'igst_amt', 'total')
+
     def _draw_items_table(self, c: canvas.Canvas, elem: Dict, data: Dict, rl_x: float, rl_y: float, w: float, h: float):
         """Draw dynamic items table on canvas"""
         cols = elem.get('columns', [])
@@ -429,12 +497,18 @@ class ChallanGenerator:
         font_size = int(elem.get('font_size', 8))
         
         curr_y = rl_y + h - row_h
-        
+
+        # The background artwork for this table already has a pre-printed "Total" row
+        # baked into the bottom-most grid line of the box, so item rows must stop one
+        # row short of the bottom and the totals go into that reserved bottom slot —
+        # not stacked right after the last item.
+        total_row_y = rl_y
+
         c.setFont(font_name, font_size)
         c.setFillColor(colors.black)
         
         for item in items:
-            if curr_y < rl_y:
+            if curr_y - row_h < total_row_y:
                 break
                 
             curr_x = rl_x
@@ -458,6 +532,45 @@ class ChallanGenerator:
                 curr_x += col_w
                 
             curr_y -= row_h
+
+        # --- Totals row: sum every money column, written into the pre-printed bottom row ---
+        if items:
+            bold_font = font_name if 'Bold' in font_name else font_name + '-Bold'
+            try:
+                c.setFont(bold_font, font_size)
+            except Exception:
+                c.setFont(font_name, font_size)
+
+            money_keys = {c_['key'] for c_ in cols if c_.get('key') in self.MONEY_COLUMN_KEYS}
+            column_sums = {
+                key: sum(float(item.get(key, 0) or 0) for item in items)
+                for key in money_keys
+            }
+
+            label_written = False
+            curr_x = rl_x
+            for col in cols:
+                key = col.get('key', '')
+                col_w = float(col.get('width', 40))
+                align = col.get('align', 'left')
+
+                if key in money_keys:
+                    val = f"{column_sums[key]:.2f}"
+                elif not label_written:
+                    val = ""
+                    label_written = True
+                else:
+                    val = ""
+
+                baseline_y = total_row_y + (row_h - font_size) / 2.0 - 45
+                if align == 'center':
+                    c.drawCentredString(curr_x + col_w / 2.0, baseline_y, val)
+                elif align == 'right':
+                    c.drawRightString(curr_x + col_w - 4, baseline_y, val)
+                else:
+                    c.drawString(curr_x + 4, baseline_y, val)
+
+                curr_x += col_w
 
     def _resolve_placeholders(self, text: str, data: Dict[str, Any]) -> str:
         """Resolve placeholders like {{studentName|Default}} in strings"""
