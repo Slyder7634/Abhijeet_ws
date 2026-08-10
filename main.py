@@ -1125,7 +1125,7 @@ class HomeTab(QWidget):
 
     def trigger_preview_update(self):
         self.preview_timer.stop()
-        self.preview_timer.start(300)  # Faster preview updates
+        self.preview_timer.start(500)  # Faster preview updates
         
     def update_totals(self):
         items = self.items_table.get_items_data()
@@ -1177,7 +1177,7 @@ class HomeTab(QWidget):
         generator = get_generator()
         try:
             # Higher DPI for better quality preview
-            png_bytes = generator.render_preview_png(payload, dpi=200)
+            png_bytes = generator.render_preview_png(payload, dpi=150)
             self.preview_widget.update_preview(png_bytes)
         except Exception as e:
             print("Preview error:", e)
@@ -1276,7 +1276,6 @@ class SearchTab(QWidget):
         # Auto-refresh timer - every 5 seconds
         self.refresh_timer = QTimer()
         self.refresh_timer.timeout.connect(self.load_recent)
-        self.refresh_timer.start(5000)  # 5 seconds
 
         # Debounce timer for live search-as-you-type (avoids firing a
         # request on every keystroke)
