@@ -954,6 +954,38 @@ class HomeTab(QWidget):
         self.vehicle_input = self.challan_vehicle_input
 
         scroll_layout.addWidget(vehicle_group)
+
+        # ===== Challan Number Input =====
+        challan_number_group = QGroupBox("Challan Details")
+        challan_number_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding-top: 14px;
+                margin-top: 8px;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px;
+            }
+        """)
+        challan_number_layout = QVBoxLayout(challan_number_group)
+        challan_number_layout.setSpacing(8)
+
+        challan_number_label = QLabel("Challan Number")
+        challan_number_label.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748b;")
+        challan_number_layout.addWidget(challan_number_label)
+
+        self.challan_number_input = QLineEdit()
+        self.challan_number_input.setPlaceholderText("Leave blank for automatic number")
+        self.challan_number_input.setStyleSheet(VEHICLE_INPUT_STYLE)
+        self.challan_number_input.textChanged.connect(self.trigger_preview_update)
+        challan_number_layout.addWidget(self.challan_number_input)
+
+        scroll_layout.addWidget(challan_number_group)
         
         # ===== Date Field =====
         date_group = QGroupBox("Date")
@@ -1190,6 +1222,9 @@ class HomeTab(QWidget):
         
         # Get date from input field or use today
         date_str = self.date_input.text().strip() or datetime.now().strftime('%d-%m-%Y')
+
+        # Use the entered challan number, or generate a preview default
+        challan_number = self.challan_number_input.text().strip() or f"CH-{datetime.now().strftime('%Y%m%d')}-001"
             
         payload = {
             "copy_type": "Original Copy",
@@ -1198,7 +1233,7 @@ class HomeTab(QWidget):
             "supplier_state": "UTTAR PRADESH",
             "supplier_state_code": "09",
             "date": date_str,
-            "challanNumber": f"CH-{datetime.now().strftime('%Y%m%d')}-001",
+            "challanNumber": challan_number,
             "items": items,
             "studentName": self.selected_company.get('name', ''),
             "customer_address": self.selected_company.get('customer_address', ''),
@@ -1230,6 +1265,7 @@ class HomeTab(QWidget):
         self.same_vehicle_checkbox.setChecked(True)
         self.challan_vehicle_input.clear()
         self.bill_vehicle_input.clear()
+        self.challan_number_input.clear()
         self.date_input.clear()  # Reset date field to use default (today)
         self.on_item_changed()
         
@@ -1249,6 +1285,9 @@ class HomeTab(QWidget):
         
         # Get date from input field or use today
         date_str = self.date_input.text().strip() or datetime.now().strftime('%d-%m-%Y')
+
+        # Use the entered challan number, or generate one automatically
+        challan_number = self.challan_number_input.text().strip() or f"CH-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}"
             
         payload = {
             "copy_type": "Original Copy",
@@ -1257,7 +1296,7 @@ class HomeTab(QWidget):
             "supplier_state": "UTTAR PRADESH",
             "supplier_state_code": "09",
             "date": date_str,
-            "challanNumber": f"CH-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}",
+            "challanNumber": challan_number,
             "items": items,
             "studentName": self.selected_company.get('name', ''),
             "customer_address": self.selected_company.get('customer_address', ''),
