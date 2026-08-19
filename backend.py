@@ -112,6 +112,17 @@ def submit():
         
         sub_id = f"sub_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
         
+        # Store date in ISO format (YYYY-MM-DD) for database consistency
+        stored_date = enriched_data.get('date', datetime.now().strftime('%d-%m-%Y'))
+        # Convert from DD-MM-YYYY to YYYY-MM-DD if needed
+        try:
+            if '-' in str(stored_date) and str(stored_date).count('-') == 2:
+                parts = str(stored_date).split('-')
+                if len(parts[0]) == 2:  # DD-MM-YYYY format
+                    stored_date = f"{parts[2]}-{parts[1]}-{parts[0]}"
+        except Exception:
+            stored_date = datetime.now().strftime('%Y-%m-%d')
+        
         submission = {
             "_id": sub_id,
             "studentName": customer_name,
@@ -119,7 +130,7 @@ def submit():
             "challanNumber": challan_number,
             "amount": enriched_data.get('amount', '0.00'),
             "description": enriched_data.get('description', 'Services'),
-            "date": enriched_data.get('date', datetime.now().strftime('%Y-%m-%d')),
+            "date": stored_date,
             "challan_vehicle_no": challan_vehicle_no,
             "bill_vehicle_no": bill_vehicle_no,
             "vehicle_no": challan_vehicle_no,  # kept for backward compatibility with older UI/records
@@ -372,6 +383,16 @@ def update_submission(submission_id):
         challan_vehicle_no = enriched_data.get('challan_vehicle_no', '')
         bill_vehicle_no = enriched_data.get('bill_vehicle_no', '')
         challan_number = enriched_data.get('challanNumber', existing.get('challanNumber', ''))
+        
+        # Convert date from PDF format (DD-MM-YYYY) back to ISO (YYYY-MM-DD) for storage
+        stored_date = enriched_data.get('date', existing.get('date', ''))
+        try:
+            if '-' in str(stored_date) and str(stored_date).count('-') == 2:
+                parts = str(stored_date).split('-')
+                if len(parts[0]) == 2:  # DD-MM-YYYY format
+                    stored_date = f"{parts[2]}-{parts[1]}-{parts[0]}"
+        except Exception:
+            stored_date = existing.get('date', '')
 
         updated_fields = {
             "studentName": name,
@@ -379,7 +400,7 @@ def update_submission(submission_id):
             "challanNumber": challan_number,
             "amount": enriched_data.get('amount', '0.00'),
             "description": enriched_data.get('description', 'Services'),
-            "date": enriched_data.get('date', existing.get('date', '')),
+            "date": stored_date,
             "challan_vehicle_no": challan_vehicle_no,
             "bill_vehicle_no": bill_vehicle_no,
             "vehicle_no": challan_vehicle_no,

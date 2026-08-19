@@ -955,6 +955,38 @@ class HomeTab(QWidget):
 
         scroll_layout.addWidget(vehicle_group)
         
+        # ===== Date Field =====
+        date_group = QGroupBox("Date")
+        date_group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding-top: 14px;
+                margin-top: 8px;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px;
+            }
+        """)
+        date_layout = QVBoxLayout(date_group)
+        date_layout.setSpacing(8)
+
+        date_label = QLabel("Challan Date (DD-MM-YYYY)")
+        date_label.setStyleSheet("font-size: 12px; font-weight: 600; color: #64748b;")
+        date_layout.addWidget(date_label)
+
+        self.date_input = QLineEdit()
+        self.date_input.setPlaceholderText(f"Default: {datetime.now().strftime('%d-%m-%Y')}")
+        self.date_input.setStyleSheet(VEHICLE_INPUT_STYLE)
+        self.date_input.textChanged.connect(self.trigger_preview_update)
+        date_layout.addWidget(self.date_input)
+
+        scroll_layout.addWidget(date_group)
+        
         # Items Table - LARGER FONT
         items_group = QGroupBox("Items / Services")
         items_group.setStyleSheet("""
@@ -1155,6 +1187,9 @@ class HomeTab(QWidget):
         # Get vehicle numbers from the editable input fields
         challan_vehicle_no = self.challan_vehicle_input.text().strip() or "UP-14-BT-9999"
         bill_vehicle_no = self.bill_vehicle_input.text().strip() or challan_vehicle_no
+        
+        # Get date from input field or use today
+        date_str = self.date_input.text().strip() or datetime.now().strftime('%d-%m-%Y')
             
         payload = {
             "copy_type": "Original Copy",
@@ -1162,7 +1197,7 @@ class HomeTab(QWidget):
             "supplier_gstin": "09AAHCN8459L1ZM",
             "supplier_state": "UTTAR PRADESH",
             "supplier_state_code": "09",
-            "date": datetime.now().strftime('%d-%m-%Y'),
+            "date": date_str,
             "challanNumber": f"CH-{datetime.now().strftime('%Y%m%d')}-001",
             "items": items,
             "studentName": self.selected_company.get('name', ''),
@@ -1195,6 +1230,7 @@ class HomeTab(QWidget):
         self.same_vehicle_checkbox.setChecked(True)
         self.challan_vehicle_input.clear()
         self.bill_vehicle_input.clear()
+        self.date_input.clear()  # Reset date field to use default (today)
         self.on_item_changed()
         
     def generate_challan(self):
@@ -1210,6 +1246,9 @@ class HomeTab(QWidget):
         # Get vehicle numbers from editable inputs
         challan_vehicle_no = self.challan_vehicle_input.text().strip() or "UP-14-BT-9999"
         bill_vehicle_no = self.bill_vehicle_input.text().strip() or challan_vehicle_no
+        
+        # Get date from input field or use today
+        date_str = self.date_input.text().strip() or datetime.now().strftime('%d-%m-%Y')
             
         payload = {
             "copy_type": "Original Copy",
@@ -1217,7 +1256,7 @@ class HomeTab(QWidget):
             "supplier_gstin": "09AAHCN8459L1ZM",
             "supplier_state": "UTTAR PRADESH",
             "supplier_state_code": "09",
-            "date": datetime.now().strftime('%d-%m-%Y'),
+            "date": date_str,
             "challanNumber": f"CH-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}",
             "items": items,
             "studentName": self.selected_company.get('name', ''),
@@ -2085,7 +2124,17 @@ class EditSubmissionDialog(QDialog):
         self.customer_state_in.setText(fd.get('customer_state', ''))
         self.customer_code_in.setText(fd.get('customer_state_code', ''))
         self.challan_no_in.setText(sub.get('challanNumber', ''))
-        self.date_in.setText(sub.get('date', fd.get('date', '')))
+        # Convert stored date (YYYY-MM-DD) to display format (DD-MM-YYYY) for editing
+        stored_date = sub.get('date', fd.get('date', ''))
+        if stored_date and '-' in str(stored_date) and str(stored_date).count('-') == 2:
+            parts = str(stored_date).split('-')
+            if len(parts[0]) == 4:  # YYYY-MM-DD format
+                display_date = f"{parts[2]}-{parts[1]}-{parts[0]}"
+            else:  # Already DD-MM-YYYY
+                display_date = stored_date
+        else:
+            display_date = stored_date or datetime.now().strftime('%d-%m-%Y')
+        self.date_in.setText(display_date)
 
         legacy_vehicle = sub.get('vehicle_no', '')
         self.challan_vehicle_in.setText(sub.get('challan_vehicle_no') or legacy_vehicle)
@@ -2115,6 +2164,9 @@ class EditSubmissionDialog(QDialog):
             "challan_vehicle_no": self.challan_vehicle_in.text().strip(),
             "bill_vehicle_no": self.bill_vehicle_in.text().strip() or self.challan_vehicle_in.text().strip(),
             "items": items,
+            "amount": str(sum(float(item.get('total', 0)) for item in items)),
+            "description": "Services",
+            "rollNo": self.full_data.get('rollNo', '001'),
             "copy_type": self.full_data.get('copy_type', 'Original Copy'),
             "company_name": self.full_data.get('company_name', 'NEXTUP ROBOTICS PVT LTD'),
             "supplier_gstin": self.full_data.get('supplier_gstin', '09AAHCN8459L1ZM'),

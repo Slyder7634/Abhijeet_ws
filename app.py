@@ -335,7 +335,25 @@ class ChallanGenerator:
         except (ValueError, TypeError):
             data['amount_words'] = number_to_words_indian(final_amount)
             
-        if not data.get('date'):
+        # Normalize date: accept any format, store in DD-MM-YYYY for PDF display
+        raw_date = data.get('date', '')
+        if raw_date:
+            # Try to parse the date
+            date_formats = ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%Y/%m/%d', '%d.%m.%Y']
+            parsed_date = None
+            for fmt in date_formats:
+                try:
+                    parsed_date = datetime.strptime(str(raw_date), fmt)
+                    break
+                except ValueError:
+                    pass
+            if parsed_date:
+                data['date'] = parsed_date.strftime('%d-%m-%Y')
+            else:
+                # If can't parse, use today
+                data['date'] = datetime.now().strftime('%d-%m-%Y')
+        else:
+            # Default to today if empty
             data['date'] = datetime.now().strftime('%d-%m-%Y')
             
         if not data.get('challanNumber'):

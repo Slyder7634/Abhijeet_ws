@@ -265,6 +265,21 @@
             "alignment": "left"
         },
         {
+    "id": "challan_date",
+    "type": "text",
+    "name": "Challan Date",
+    "x": 70,
+    "y": 130,
+    "width": 160,
+    "height": 10,
+    "text": "{{date|11-06-git 2026}}",
+    "font": "Helvetica",
+    "font_size": 6,
+    "color": "#000000",
+    "alignment": "left",
+    "erase_bg": true
+        },
+        {
             "id": "elem_14",
             "type": "text",
             "name": "New Text",
