@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
 
 try:
     from PyPDF2 import PdfReader, PdfWriter
@@ -122,7 +123,7 @@ class ChallanGenerator:
                 # Supplier & Customer Details Block
                 {"id": "supplier_gstin", "type": "text", "name": "Supplier GSTIN", "x": 75, "y": 115, "width": 160, "height": 12, "text": "{{supplier_gstin|09AAHCN8459L1ZM}}", "font": "Helvetica-Bold", "font_size": 9, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "challan_no", "type": "text", "name": "Challan Number", "x": 75, "y": 127, "width": 160, "height": 12, "text": "{{challanNumber|2026-2027/05}}", "font": "Helvetica", "font_size": 9, "color": "#000000", "alignment": "left", "erase_bg": True},
-                {"id": "challan_date", "type": "text", "name": "Challan Date", "x": 75, "y": 137, "width": 160, "height": 12, "text": "{{date|11-06-2026}}", "font": "Helvetica", "font_size": 9, "color": "#000000", "alignment": "left", "erase_bg": True},
+                {"id": "challan_date", "type": "text", "name": "Challan Date", "x": 70, "y": 130, "width": 160, "height": 10, "text": "{{date|11-06-2026}}", "font": "Helvetica", "font_size": 6, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "supplier_state", "type": "text", "name": "Supplier State", "x": 75, "y": 148, "width": 65, "height": 12, "text": "{{supplier_state|UTTAR PRADESH}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 {"id": "supplier_code", "type": "text", "name": "Supplier State Code", "x": 200, "y": 148, "width": 30, "height": 12, "text": "{{supplier_state_code|09}}", "font": "Helvetica", "font_size": 8, "color": "#000000", "alignment": "left", "erase_bg": True},
                 
@@ -187,7 +188,7 @@ class ChallanGenerator:
     # config. Adjust the x/y offsets below (in points) if a field still isn't quite right
     # after adding TaxInvoice.pdf — positive y moves DOWN the page, positive x moves RIGHT.
     BILL_POSITION_OVERRIDES: Dict[str, Dict[str, float]] = {
-        "challan_date": {"y": 149},  # was colliding with "challan_no" above it; nudged down
+        "challan_date": {"y": 130},  # was colliding with "challan_no" above it; nudged down
     }
 
     # The Challan and the Bill are two independent documents and can carry two different
@@ -463,15 +464,46 @@ class ChallanGenerator:
                     c.setFillColor(colors.HexColor(color_hex))
                 except Exception:
                     c.setFillColor(colors.black)
-                    
-                baseline_y = rl_y + (h - font_size) / 2.0
-                
-                if align == 'center':
-                    c.drawCentredString(rl_x + w / 2.0, baseline_y, text_content)
+
+                if elem.get('id') == 'lbl_amount_words':
+                    def wrap_lines(text, size):
+                        wrapped = []
+                        current_line = ''
+                        for word in text.split():
+                            candidate = f'{current_line} {word}'.strip()
+                            if current_line and pdfmetrics.stringWidth(candidate, font_name, size) > w:
+                                wrapped.append(current_line)
+                                current_line = word
+                            else:
+                                current_line = candidate
+                        if current_line or not wrapped:
+                            wrapped.append(current_line)
+                        return wrapped
+
+                    max_lines = max(1, int(h / (font_size * 1.2)))
+                    lines = wrap_lines(text_content, font_size)
+                    while len(lines) > max_lines and font_size > 5:
+                        font_size -= 0.5
+                        max_lines = max(1, int(h / (font_size * 1.2)))
+                        lines = wrap_lines(text_content, font_size)
+                    c.setFont(font_name, font_size)
+                    leading = font_size * 1.2
+                    block_height = len(lines) * leading
+                    first_baseline = rl_y + (h + block_height) / 2.0 - leading
+                    for line_index, line in enumerate(lines):
+                        baseline_y = first_baseline - line_index * leading
+                        if align == 'center':
+                            c.drawCentredString(rl_x + w / 2.0, baseline_y, line)
+                        elif align == 'right':
+                            c.drawRightString(rl_x + w, baseline_y, line)
+                        else:
+                            c.drawString(rl_x, baseline_y, line)
+                elif align == 'center':
+                    c.drawCentredString(rl_x + w / 2.0, rl_y + (h - font_size) / 2.0, text_content)
                 elif align == 'right':
-                    c.drawRightString(rl_x + w, baseline_y, text_content)
+                    c.drawRightString(rl_x + w, rl_y + (h - font_size) / 2.0, text_content)
                 else:
-                    c.drawString(rl_x, baseline_y, text_content)
+                    c.drawString(rl_x, rl_y + (h - font_size) / 2.0, text_content)
                     
             elif elem_type == 'rect':
                 fill_color = elem.get('fill_color')
